@@ -15,8 +15,8 @@ import java.util.logging.Logger;
 public class Client {
 
     private boolean internal;
-    private String ipGiven;
-    private String macAddr;
+    private String givenIP;
+    private String macAddress;
     private String natIP;
     // The client socket
     private Socket clientSocket = null;
@@ -24,6 +24,8 @@ public class Client {
     private ObjectOutputStream os = null;
     // The input stream
     private ObjectInputStream is = null;
+    
+    private final int portNumber = 8000;
 
     private BufferedReader inputLine = null;
     private boolean closed = false;
@@ -31,31 +33,31 @@ public class Client {
 
     public Client() {
         inputLine = new BufferedReader(new InputStreamReader(System.in));
-        System.out.println("Input NAT-box IP address");
+        System.out.println("NAT-Box IP?");
         try {
             natIP = inputLine.readLine();
-            String temp;
-            while (true) {
-                System.out.println("Are you an internal or external client?");
+            String temp = "";
+            boolean carryOn = true;
+            
+            while (carryOn) {
+                System.out.println("Internal or External client?");
                 temp = inputLine.readLine();
-                if (temp.equals("internal") || temp.equals("external")) {
-                    break;
+                if (temp.equals("internal")) {
+                    internal = true;
+                    carryOn = false;
+                } else if (temp.equals("external")) {
+                    internal = false;
+                    carryOn = false;
                 } else {
                     System.out.println("Only enter either 'internal' or 'external'");
                 }
             }
-            if (temp.equals("internal")) {
-                internal = true;
-            } else {
-                internal = false;
-            }
         } catch (IOException ex) {
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
         }
-        int portNumber = 8000;
 
         /*
-        * Open a socket on a given host and port. Open input and output streams.
+         * Open a socket on a given host and port. Open input and output streams.
          */
         try {
             clientSocket = new Socket(natIP, portNumber);
@@ -68,27 +70,30 @@ public class Client {
         }
 
         /*
-        * If everything has been initialized then we want to write some data to the
-        * socket we have opened a connection to on the port portNumber.
+         * If everything has been initialized then we want to write some data to the
+         * socket we have opened a connection to on the port portNumber.
          */
-        if (clientSocket != null && os != null && is != null) {
+        boolean initialized = (clientSocket != null) && (os != null) && (is != null);
+        
+        if (initialized) {
             try {
 
                 /* Create a thread to read from the server. */
-                new Thread(new listenerThread(this)).start();
+                new Thread(new ListenerThread(this)).start();
 
-                String inter = "external";
+                String inter = "";
                 if (internal) {
                     inter = "internal";
+                } else {
+                    inter = "external";
                 }
+                
                 os.writeObject(inter);
 
                 while (!closed) {
-
-                    while (!isJoined()) {
-
-                    }
-                    if (ipGiven.equals("none")) {
+                    while (!isJoined()) {}
+                    
+                    if (givenIP.equals("none")) {
                         System.out.println("Server is too busy. Try again later.");
                     }
 
@@ -98,19 +103,20 @@ public class Client {
                     if (dest.equals("quit")) {
                         payload = "";
 
-                        Paquet send = new Paquet(ipGiven, dest, macAddr, portNumber, payload);
+                        Paquet send = new Paquet(givenIP, dest, macAddress, portNumber, payload);
                         os.writeObject(send);
                         break;
                     } else {
                         System.out.println("Enter message:");
                         payload = inputLine.readLine();
-                        Paquet send = new Paquet(ipGiven, dest, macAddr, portNumber, payload);
+                        Paquet send = new Paquet(givenIP, dest, macAddress, portNumber, payload);
                         os.writeObject(send);
                     }
 
                 }
+                
                 /*
-            * Close the output stream, close the input stream, close the socket.
+                 * Close the output stream, close the input stream, close the socket.
                  */
                 System.out.println("Goodbye");
                 os.close();
@@ -118,7 +124,7 @@ public class Client {
                 clientSocket.close();
 
             } catch (IOException e) {
-
+                System.err.println("Could not create listener thread: " + e);
             }
         }
     }
@@ -128,19 +134,19 @@ public class Client {
     }
 
     public String getIpGiven() {
-        return ipGiven;
+        return givenIP;
     }
 
     public void setIpGiven(String ipGiven) {
-        this.ipGiven = ipGiven;
+        this.givenIP = ipGiven;
     }
 
     public String getMacAddr() {
-        return macAddr;
+        return macAddress;
     }
 
     public void setMacAddr(String macAddr) {
-        this.macAddr = macAddr;
+        this.macAddress = macAddr;
     }
 
     public ObjectInputStream getIs() {

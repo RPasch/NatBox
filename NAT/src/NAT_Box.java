@@ -10,13 +10,13 @@ import java.util.logging.Logger;
 
 public class NAT_Box {
 
-    private int maxUsers = 255;
-    private ServerSocket service = null;
+    private final int MAX_USERS = 255;
+    private ServerSocket serverSocket = null;
     private Socket userSocket = null;
-    private UserThread[] users = new UserThread[maxUsers];
-    private String myMacAddr = "AA:AA:AA:AA:AA:AA";
-    private String myPrivateIPAddr = "192.168.0.0";
-    private String myPublicIPAddr = "69:69:69:69";
+    private UserThread[] users = new UserThread[MAX_USERS];
+    private String myMacAddress = "AA:AA:AA:AA:AA:AA";
+    private String myPrivateIPAddress = "192.168.0.0";
+    private String myPublicIPAddress = "69:69:69:69";
     private Hashtable<String, String> available_ip = new Hashtable<String, String>();
 
     private List<String> MacAddresses = new ArrayList<String>();
@@ -24,23 +24,23 @@ public class NAT_Box {
 
     public NAT_Box(int PortNumber) {
         try {
-            service = new ServerSocket(PortNumber);
+            serverSocket = new ServerSocket(PortNumber);
         } catch (IOException e) {
             System.out.println("Could not create server");
         }
         generateAvailableIP_MAC();
-        externalIPs.add(myPublicIPAddr);
-        MacAddresses.add(myMacAddr);
-        System.out.println("My private IP Address: " + myPrivateIPAddr);
-        System.out.println("My public IP Address: " + myPublicIPAddr);
-        System.out.println("My MAC Address: " + myMacAddr);
+        externalIPs.add(myPublicIPAddress);
+        MacAddresses.add(myMacAddress);
+        System.out.println("Private IP Address: " + myPrivateIPAddress);
+        System.out.println("Public IP Address: " + myPublicIPAddress);
+        System.out.println("MAC Address: " + myMacAddress);
     }
 
     public void startNAT() {
         //create a new connection for each user
         while (true) {
             try {
-                userSocket = service.accept();
+                userSocket = serverSocket.accept();
 
                 //setup input and output streams for new user
                 ObjectInputStream input = new ObjectInputStream(userSocket.getInputStream());
@@ -61,10 +61,10 @@ public class NAT_Box {
                 }
                 //assign internal/external user ip and mac addr 
                 String assigned_ip = "none";//assume no addresses are available
-                String assigned_mac = Generate_mac();
+                String assigned_mac = generateMAC();
                 if (internal) {
                     //assign internal address
-                    for (int i = 1; i < maxUsers; i++) {
+                    for (int i = 1; i < MAX_USERS; i++) {
                         if (available_ip.get("192.168.0." + i).equals("false")) {
                             assigned_ip = "192.168.0." + i;
                             break;
@@ -74,9 +74,9 @@ public class NAT_Box {
                 } else {
                     //assign external address
 
-                    assigned_ip = genExternalIP();
+                    assigned_ip = generateExternalIP();
                     while (externalIPs.contains(assigned_ip)) {
-                        assigned_ip = genExternalIP();
+                        assigned_ip = generateExternalIP();
                     }
 
                 }
@@ -89,9 +89,9 @@ public class NAT_Box {
                 } else {
                     available_ip.put(assigned_ip, "true");
                     int i;
-                    for (i = 0; i < maxUsers; i++) {
+                    for (i = 0; i < MAX_USERS; i++) {
                         if (users[i] == null) {
-                            users[i] = new UserThread(input, output, users, assigned_ip, internal, myPublicIPAddr, myMacAddr, this, userSocket);
+                            users[i] = new UserThread(input, output, users, assigned_ip, internal, myPublicIPAddress, myMacAddress, this, userSocket);
                             users[i].start();
                             break;
                         }
@@ -106,7 +106,6 @@ public class NAT_Box {
     public void closeSocket(String ip) {
         available_ip.remove(ip);
         available_ip.put(ip, "false");
-
     }
 
     public void generateAvailableIP_MAC() {
@@ -119,13 +118,15 @@ public class NAT_Box {
                 available_ip.put(temp_ip, "false");
             }
         } catch (Exception e) {
-            System.out.println("Error while loading ip adresses: " + e);
+            System.out.println("Error loading IP adresses: " + e);
         }
     }
 
-    public String Generate_mac() {
-        String mac;
-        while (true) {
+    public String generateMAC() {
+        String mac = "";
+        boolean carryOn = true;
+
+        while (carryOn) {
             Random rn = new Random();
             int n1 = rn.nextInt(256);
             int n2 = rn.nextInt(256);
@@ -133,7 +134,6 @@ public class NAT_Box {
             int n4 = rn.nextInt(256);
             int n5 = rn.nextInt(256);
             int n6 = rn.nextInt(256);
-            mac = "";
 
             String p1 = Integer.toHexString(n1);
             String p2 = Integer.toHexString(n2);
@@ -146,13 +146,14 @@ public class NAT_Box {
 
             if (!MacAddresses.contains(mac)) {
                 MacAddresses.add(mac);
-                break;
+                carryOn = false;
             }
         }
+
         return mac;
     }
 
-    public String genExternalIP() {
+    public String generateExternalIP() {
         Random rn = new Random();
         int n1 = rn.nextInt(256);
         int n2 = rn.nextInt(256);
@@ -160,16 +161,16 @@ public class NAT_Box {
         int n4 = rn.nextInt(256);
         String ip = "";
 
-        while (n1 == 192) {
-            n1 = rn.nextInt(256);
+        if (n1 == 192) {
+            n1 += 1;
         }
 
-        while (n2 == 168) {
-            n2 = rn.nextInt(256);
+        if (n2 == 168) {
+            n2 += 1;
         }
 
-        while (n3 == 0) {
-            n3 = rn.nextInt(256);
+        if (n3 == 0) {
+            n3 += 1;
         }
 
         n4 = rn.nextInt(256);

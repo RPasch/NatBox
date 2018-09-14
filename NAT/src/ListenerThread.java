@@ -4,12 +4,12 @@ import java.io.ObjectInputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-class listenerThread extends Thread {
+class ListenerThread extends Thread {
 
     private Client client;
     private ObjectInputStream is;
 
-    public listenerThread(Client client) {
+    public ListenerThread(Client client) {
         this.client = client;
         is = client.getIs();
 
@@ -21,12 +21,12 @@ class listenerThread extends Thread {
          */
 
         try {
-            String ipGiven = (String) is.readObject();
-            String macAddr = (String) is.readObject();
-            client.setIpGiven(ipGiven);
-            client.setMacAddr(macAddr);
-            System.out.println("Assigned IP: " + ipGiven);
-            System.out.println("Assigned MAC: " + macAddr);
+            String givenIP = (String) is.readObject();
+            String macAddress = (String) is.readObject();
+            client.setIpGiven(givenIP);
+            client.setMacAddr(macAddress);
+            System.out.println("Assigned IP: " + givenIP);
+            System.out.println("Assigned MAC: " + macAddress);
             synchronized (this) {
                 client.setJoinedNetwork(true);
             }
@@ -53,7 +53,7 @@ class listenerThread extends Thread {
                 client.setClosed(true);
             }
         } catch (IOException e) {
-
+            System.err.println("IO exception: " + e);
         } catch (ClassNotFoundException e) {
             System.err.println("ClassNotFoundException:  " + e);
         }
