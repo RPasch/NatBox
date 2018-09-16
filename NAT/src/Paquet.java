@@ -7,13 +7,25 @@ public class Paquet implements Serializable {
     private String sourceMac;
     private int port;
     private String payload;
-
-    public Paquet(String sourceIP, String destIP, String sourceMac, int port, String payload) {
+    private int number ;
+    private int InEx;
+    
+    public Paquet(String sourceIP, String destIP, String sourceMac, int port, String payload, int number, int InEx) {
         this.sourceIP = sourceIP;
         this.destIP = destIP;
         this.sourceMac = sourceMac;
         this.port = port;
         this.payload = payload;
+        this.number = number;
+        this.InEx = InEx;
+    }
+
+    public int getInEx() {
+        return InEx;
+    }
+
+    public void setInEx(int InEx) {
+        this.InEx = InEx;
     }
 
     public String getSourceIP() {
@@ -54,6 +66,14 @@ public class Paquet implements Serializable {
 
     public void setPayload(String payload) {
         this.payload = payload;
+    }
+
+    public int getNumber() {
+        return number;
+    }
+
+    public void setNumber(int number) {
+        this.number = number;
     }
 
 }

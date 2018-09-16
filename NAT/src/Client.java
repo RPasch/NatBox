@@ -8,123 +8,132 @@ import java.io.PrintStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
 public class Client {
-
-    private boolean internal;
-    private String givenIP;
+    public int number;
+    private static boolean internal;
+    public String givenIP;
     private String macAddress;
-    private String natIP;
+    private static String natIP;
     // The client socket
-    private Socket clientSocket = null;
+    private static Socket clientSocket = null;
     // The output stream
-    private ObjectOutputStream os = null;
+    private static ObjectOutputStream os = null;
     // The input stream
-    private ObjectInputStream is = null;
+    public static ObjectInputStream is = null;
     
-    private final int portNumber = 8000;
+    private static final int portNumber = 8000;
 
-    private BufferedReader inputLine = null;
-    private boolean closed = false;
+    private static BufferedReader inputLine = null;
+    public boolean closed = false;
     private boolean joinedNetwork = false;
-
-    public Client() {
+    private Queue<Paquet> paquets = new LinkedList<>();
+   
+    public static void setEverything(){
         inputLine = new BufferedReader(new InputStreamReader(System.in));
-        System.out.println("NAT-Box IP?");
-        try {
-            natIP = inputLine.readLine();
-            String temp = "";
-            boolean carryOn = true;
-            
-            while (carryOn) {
-                System.out.println("Internal or External client?");
-                temp = inputLine.readLine();
-                if (temp.equals("internal")) {
-                    internal = true;
-                    carryOn = false;
-                } else if (temp.equals("external")) {
-                    internal = false;
-                    carryOn = false;
-                } else {
-                    System.out.println("Only enter either 'internal' or 'external'");
-                }
-            }
-        } catch (IOException ex) {
-            Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
-        }
+            System.out.println("NAT-Box IP?");
+            try {
+                natIP = inputLine.readLine();
+                String temp = "";
+                boolean carryOn = true;
 
-        /*
-         * Open a socket on a given host and port. Open input and output streams.
-         */
-        try {
-            clientSocket = new Socket(natIP, portNumber);
-            os = new ObjectOutputStream(clientSocket.getOutputStream());
-            is = new ObjectInputStream(clientSocket.getInputStream());
-        } catch (UnknownHostException e) {
-            System.err.println("Don't know about host " + natIP);
-        } catch (IOException e) {
-            System.err.println("Couldn't get I/O for the connection to the host " + natIP);
-        }
+                while (carryOn) {
+                    System.out.println("Internal or External client?");
+                    temp = inputLine.readLine();
+                    switch (temp) {
+                        case "internal":
+                            internal = true;
+                            carryOn = false;
+                            break;
+                        case "external":
+                            internal = false;
+                            carryOn = false;
+                            break;
+                        default:
+                            System.out.println("Only enter either 'internal' or 'external'");
+                            break;
+                    }
+                }
+            } catch (IOException ex) {
+                System.err.println(ex);
+            }
+
+            /*
+             * Open a socket on a given host and port. Open input and output streams.
+             */
+            try {
+                clientSocket = new Socket(natIP, portNumber);
+                os = new ObjectOutputStream(clientSocket.getOutputStream());
+                is = new ObjectInputStream(clientSocket.getInputStream());
+            } catch (UnknownHostException e) {
+                System.err.println("Host : " + natIP+ " does not exist \n error :"+ e);
+            } catch (IOException e) {
+                System.err.println("I/O error with host :  " + natIP + " error : "+ e);
+            }
+    }
+    public Client() {
 
         /*
          * If everything has been initialized then we want to write some data to the
          * socket we have opened a connection to on the port portNumber.
          */
-        boolean initialized = (clientSocket != null) && (os != null) && (is != null);
+        boolean allGood = (clientSocket != null) && (os != null) && (is != null);
         
-        if (initialized) {
+        if (allGood) {
             try {
 
                 /* Create a thread to read from the server. */
                 new Thread(new ListenerThread(this)).start();
 
-                String inter = "";
+                int InEx ;
                 if (internal) {
-                    inter = "internal";
+                    InEx = 0;
                 } else {
-                    inter = "external";
+                    InEx = 1;
                 }
                 
-                os.writeObject(inter);
+                os.writeObject(InEx);
 
                 while (!closed) {
                     while (!isJoined()) {}
                     
-                    if (givenIP.equals("none")) {
-                        System.out.println("Server is too busy. Try again later.");
+                    if (givenIP.equals("empty")) {
+                        System.out.println("Could not connect to server");
                     }
 
-                    System.out.println("Enter destination IP:");
+                    System.out.println("Enter destination IP address : ");
                     String dest = inputLine.readLine();
                     String payload;
-                    if (dest.equals("quit")) {
+                    Paquet send ;
+                    if (dest.equals("exit")) {
                         payload = "";
-
-                        Paquet send = new Paquet(givenIP, dest, macAddress, portNumber, payload);
-                        os.writeObject(send);
+                        send = new Paquet(givenIP, dest, macAddress, portNumber, payload, number, InEx);
                         break;
                     } else {
                         System.out.println("Enter message:");
                         payload = inputLine.readLine();
-                        Paquet send = new Paquet(givenIP, dest, macAddress, portNumber, payload);
-                        os.writeObject(send);
+                        send = new Paquet(givenIP, dest, macAddress, portNumber, payload,number,InEx);
                     }
+                    paquets.add(send);
+                    os.writeObject(send);
 
                 }
                 
                 /*
                  * Close the output stream, close the input stream, close the socket.
                  */
-                System.out.println("Goodbye");
+                System.out.println("You are disconnected");
                 os.close();
                 is.close();
                 clientSocket.close();
 
             } catch (IOException e) {
-                System.err.println("Could not create listener thread: " + e);
+                System.err.println("Could not create client " + e);
             }
         }
     }
@@ -133,25 +142,25 @@ public class Client {
         return joinedNetwork;
     }
 
-    public String getIpGiven() {
-        return givenIP;
-    }
+//    public String getIpGiven() {
+//        return givenIP;
+//    }
 
     public void setIpGiven(String ipGiven) {
         this.givenIP = ipGiven;
     }
 
-    public String getMacAddr() {
-        return macAddress;
-    }
+//    public String getMacAddr() {
+//        return macAddress;
+//    }
 
     public void setMacAddr(String macAddr) {
         this.macAddress = macAddr;
     }
 
-    public ObjectInputStream getIs() {
-        return is;
-    }
+//    public ObjectInputStream getIs() {
+//        return is;
+//    }
 
     public void setIs(ObjectInputStream is) {
         this.is = is;
@@ -161,15 +170,17 @@ public class Client {
         this.joinedNetwork = joinedNetwork;
     }
 
-    public boolean isClosed() {
-        return closed;
-    }
+//    public boolean isClosed() {
+//        return closed;
+//    }
 
     public synchronized void setClosed(boolean closed) {
         this.closed = closed;
     }
 
     public static void main(String[] args) {
+        setEverything();
+
         Client n = new Client();
     }
 }

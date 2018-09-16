@@ -2,7 +2,9 @@ import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.logging.Level;
@@ -10,105 +12,40 @@ import java.util.logging.Logger;
 
 public class NAT_Box {
 
-    private final int MAX_USERS = 255;
-    private ServerSocket serverSocket = null;
-    private Socket userSocket = null;
-    private UserThread[] users = new UserThread[MAX_USERS];
-    private String myMacAddress = "AA:AA:AA:AA:AA:AA";
-    private String myPrivateIPAddress = "192.168.0.0";
-    private String myPublicIPAddress = "69:69:69:69";
-    private Hashtable<String, String> available_ip = new Hashtable<String, String>();
-
-    private List<String> MacAddresses = new ArrayList<String>();
-    private List<String> externalIPs = new ArrayList<String>();
-
+    private final static int MAX_USERS = 255;
+    private static ServerSocket serverSocket = null;
+    private static Socket userSocket = null;
+    private static UserThread[] users = new UserThread[MAX_USERS];
+    private static String myMacAddress = "AA:AA:AA:AA:AA:AA";
+    private static String myPrivateIPAddress = "192.168.0.0";
+    private static String myPublicIPAddress = "69:69:69:69";
+    private static Hashtable<String, String> available_ip = new Hashtable<String, String>();
+    public static int number;
+    private static List<String> MacAddresses = new ArrayList<String>();
+    private static List<String> externalIPs = new ArrayList<String>();
+    private static Queue<UserThread> userThreads = new LinkedList<>();
     public NAT_Box(int PortNumber) {
         try {
             serverSocket = new ServerSocket(PortNumber);
         } catch (IOException e) {
-            System.out.println("Could not create server");
+            System.out.println("Server could not be created");
         }
-        generateAvailableIP_MAC();
+        generateAvailableIP();
         externalIPs.add(myPublicIPAddress);
         MacAddresses.add(myMacAddress);
-        System.out.println("Private IP Address: " + myPrivateIPAddress);
-        System.out.println("Public IP Address: " + myPublicIPAddress);
-        System.out.println("MAC Address: " + myMacAddress);
+        System.out.println("Private IP  " + myPrivateIPAddress);
+        System.out.println("Public IP   " + myPublicIPAddress);
+        System.out.println("MAC   " + myMacAddress);
     }
 
-    public void startNAT() {
-        //create a new connection for each user
-        while (true) {
-            try {
-                userSocket = serverSocket.accept();
-
-                //setup input and output streams for new user
-                ObjectInputStream input = new ObjectInputStream(userSocket.getInputStream());
-                ObjectOutputStream output = new ObjectOutputStream(userSocket.getOutputStream());
-                System.out.println("New User connected");
-                //determine if user is internal or external
-                String inter = "";
-                try {
-                    inter = (String) input.readObject();
-                } catch (ClassNotFoundException ex) {
-                    Logger.getLogger(UserThread.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                boolean internal;
-                if (inter.equals("internal")) {
-                    internal = true;
-                } else {
-                    internal = false;
-                }
-                //assign internal/external user ip and mac addr 
-                String assigned_ip = "none";//assume no addresses are available
-                String assigned_mac = generateMAC();
-                if (internal) {
-                    //assign internal address
-                    for (int i = 1; i < MAX_USERS; i++) {
-                        if (available_ip.get("192.168.0." + i).equals("false")) {
-                            assigned_ip = "192.168.0." + i;
-                            break;
-                        }
-                    }
-
-                } else {
-                    //assign external address
-
-                    assigned_ip = generateExternalIP();
-                    while (externalIPs.contains(assigned_ip)) {
-                        assigned_ip = generateExternalIP();
-                    }
-
-                }
-                output.writeObject(assigned_ip);
-                output.writeObject(assigned_mac);
-
-                if (assigned_ip.equals("none")) {
-                    output.close();
-                    userSocket.close();
-                } else {
-                    available_ip.put(assigned_ip, "true");
-                    int i;
-                    for (i = 0; i < MAX_USERS; i++) {
-                        if (users[i] == null) {
-                            users[i] = new UserThread(input, output, users, assigned_ip, internal, myPublicIPAddress, myMacAddress, this, userSocket);
-                            users[i].start();
-                            break;
-                        }
-                    }
-                }
-            } catch (IOException e) {
-                System.out.println("Could not accept user.");
-            }
-        }
-    }
+    
 
     public void closeSocket(String ip) {
         available_ip.remove(ip);
         available_ip.put(ip, "false");
     }
 
-    public void generateAvailableIP_MAC() {
+    public void generateAvailableIP() {
         try {
             Scanner scFile = new Scanner(new File("ip.txt"));
             while (scFile.hasNext()) {
@@ -122,28 +59,32 @@ public class NAT_Box {
         }
     }
 
-    public String generateMAC() {
+    public static String randomMACAddress(){
+        Random rand = new Random();
+        byte[] macAddr = new byte[6];
+        rand.nextBytes(macAddr);
+
+        macAddr[0] = (byte)(macAddr[0] & (byte)254);  //zeroing last 2 bytes to make it unicast and locally adminstrated
+
+        StringBuilder sb = new StringBuilder(18);
+        for(byte b : macAddr){
+
+            if(sb.length() > 0)
+                sb.append(":");
+
+            sb.append(String.format("%02x", b));
+        }
+
+
+        return sb.toString();
+    }
+    
+    public static String generateMAC() {
         String mac = "";
         boolean carryOn = true;
 
         while (carryOn) {
-            Random rn = new Random();
-            int n1 = rn.nextInt(256);
-            int n2 = rn.nextInt(256);
-            int n3 = rn.nextInt(256);
-            int n4 = rn.nextInt(256);
-            int n5 = rn.nextInt(256);
-            int n6 = rn.nextInt(256);
-
-            String p1 = Integer.toHexString(n1);
-            String p2 = Integer.toHexString(n2);
-            String p3 = Integer.toHexString(n3);
-            String p4 = Integer.toHexString(n4);
-            String p5 = Integer.toHexString(n5);
-            String p6 = Integer.toHexString(n6);
-
-            mac = p1 + ":" + p2 + ":" + p3 + ":" + p4 + ":" + p5 + ":" + p6;
-
+         mac = randomMACAddress();
             if (!MacAddresses.contains(mac)) {
                 MacAddresses.add(mac);
                 carryOn = false;
@@ -152,35 +93,114 @@ public class NAT_Box {
 
         return mac;
     }
-
-    public String generateExternalIP() {
-        Random rn = new Random();
-        int n1 = rn.nextInt(256);
-        int n2 = rn.nextInt(256);
-        int n3 = rn.nextInt(256);
-        int n4 = rn.nextInt(256);
-        String ip = "";
-
-        if (n1 == 192) {
-            n1 += 1;
+    public static void removeUser(){
+        if(!userThreads.isEmpty()){
+            userThreads.remove();
         }
-
-        if (n2 == 168) {
-            n2 += 1;
-        }
-
-        if (n3 == 0) {
-            n3 += 1;
-        }
-
-        n4 = rn.nextInt(256);
-
-        ip = Integer.toString(n1) + "." + Integer.toString(n2) + "." + Integer.toString(n3) + "." + Integer.toString(n4);
-        return ip;
+        
     }
-
+    public static String generateExternalIP() {
+       Random r = new Random();
+       
+       String ip = r.nextInt(256) + "." + r.nextInt(256) + "." + r.nextInt(256) + "." + r.nextInt(256);
+       while(externalIPs.contains(ip)){
+           ip = generateExternalIP();
+       }
+       return ip;
+    }
+   public static String generateMessage(String ip , String mac , int num){
+        String msg = "100";
+        
+        if ( ip.equals(myPrivateIPAddress)){
+            msg = "1";
+        } else if (ip.equals(myPublicIPAddress)){
+            msg = "2";
+        }else if (mac.equals(myMacAddress)){
+            msg = "1";
+        } else if (num == 0){
+            msg = "0";
+        }
+        for ( int i = 0 ; i <externalIPs.size(); i ++ ){
+            if ( externalIPs.contains(ip)){
+                msg = "0";
+            }
+        
+        }
+        return msg;
+    }
+   
+    public static void sendInfo(String msg , String ip, String mac,int number,ObjectOutputStream output) throws IOException{
+        output.writeObject(msg);
+        output.writeObject(ip);
+        output.writeObject(mac);
+        output.writeObject(number);
+    
+    }
     public static void main(String[] args) {
-        NAT_Box n = new NAT_Box(8000);
-        n.startNAT();
+        NAT_Box nat = new NAT_Box(8000);
+//        n.startNAT();
+        while (true) {
+            try {
+                nat.userSocket = serverSocket.accept();
+
+                //setup input and output streams for new user
+                ObjectInputStream input = new ObjectInputStream(userSocket.getInputStream());
+                ObjectOutputStream output = new ObjectOutputStream(userSocket.getOutputStream());
+                System.out.println("\n **************\n A new user is connected \n ************** \n");
+                //determine if user is internal or external
+                String inter = "";
+                
+                int InEx =2;
+                try {
+                    InEx = (int) input.readObject();
+                } catch (ClassNotFoundException ex) {
+                    System.err.println("could not read object : "+ ex);
+                }
+                String assigned_ip = "empty";//assume no addresses are available
+                
+                boolean internal = true;
+                if (InEx == 0) {
+                    internal = true;
+                     for (int i = 1; i < MAX_USERS; i++) {
+                         String temp = available_ip.get("192.168.0." + i);
+                         String ass = "192.168.0." + i;
+                        if (temp.equals("false")) {
+                            assigned_ip = ass;
+                            number = i;
+                            break;
+                        }
+                    }
+                } else if (InEx == 1) {
+                    internal = false;
+                    number = 0;
+                    assigned_ip = generateExternalIP();
+                    while (externalIPs.contains(assigned_ip)) {
+                        assigned_ip = generateExternalIP();
+                    }
+                }
+                String assigned_mac = generateMAC();
+                String message = generateMessage(assigned_ip, assigned_mac, number);
+                
+                sendInfo(message , assigned_ip, assigned_mac,number , output);
+                
+                if (assigned_ip.equals("empty")) {
+                    output.close();
+                    userSocket.close();
+                } else {
+                    available_ip.put(assigned_ip, "true");
+                    int i;
+                    for (i = 0; i < MAX_USERS; i++) {
+                        if (users[i] == null) {
+                            users[i] = new UserThread(input, output, users, assigned_ip, internal, myPublicIPAddress, myMacAddress, nat, userSocket,i,InEx);
+                            users[i].start();
+                            userThreads.add(users[i]);
+                            break;
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                System.err.println("Could not accept user."+ e);
+            }
+        }
     }
 }
