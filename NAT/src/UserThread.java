@@ -43,17 +43,16 @@ class UserThread extends Thread {
     /**
      * This method puts the given Paquet in the NAT_Table
      *
-     * @param p
+     * @param p paquet p
      */
     public void putInNatTable(Paquet p) {
         NAT_Table.put(p.getRecvIP(), p.getSenderIP());
-
     }
 
     /**
      * This method takes out the given Paquet in the NAT_Table
      *
-     * @param sourceIP
+     * @param sourceIP  the source IP
      */
     public void takeOutNatTable(String sourceIP) {
         NAT_Table.remove(sourceIP);
@@ -63,23 +62,25 @@ class UserThread extends Thread {
      * This method is the method that is run when the thread is started. I
      * immediately receives information from the client. It handles messages
      * from internal - internal , internal to external , dropped packets and
-     * ect...
+     * etc.
      */
     public void run() {
         while (true) {
             try {
-
                 Paquet p = (Paquet) inStream.readObject();
                 String ip_of_recvr = p.getRecvIP();
                 InternalOrNah = p.getInEx();
+                
                 if (ip_of_recvr.equals("exit")) {
                     outStream.writeObject(null);
                     box.closeSocket(given_ip);
                     given_ip = "gone";
                     break;
                 }
+                
                 if (ip_of_recvr.equals(NAT_IP) && InternalOrNah == 1) {
                     System.out.println("\n +++++++++++++\n FROM EXTERNAL \n +++++++++++++\n ");
+                    
                     if (!inNatTable(p.getSenderIP())) {
                         System.out.println("Dropped packet from IP(" + p.getSenderIP() + ")");
                         Paquet errorPacket = new Paquet(NAT_IP, p.getSenderIP(), NAT_Mac, 8000, "Your IP address is not in the NAT table: message(\"" + p.getMsg() + "\") not sent.", number, InternalOrNah);
@@ -89,6 +90,7 @@ class UserThread extends Thread {
                     } else {
                         String intDestIP = NAT_Table.get(p.getSenderIP());
                         p.setRecvIP(intDestIP);
+                        
                         synchronized (this) {
                             for (int i = 0; i < max; i++) {
                                 if (intDestIP.equals(userThreads[i].given_ip)) {
@@ -102,14 +104,15 @@ class UserThread extends Thread {
                     }
                 } else if (InternalOrNah == 0) {
                     System.out.println("\n +++++++++++++\n FROM INTERNAL \n +++++++++++++\n ");
-
                     boolean boolCheck = false;
+                    
                     synchronized (this) {
                         for (int i = 0; i < max; i++) {
                             if (userThreads[i] != null) {
                                 if (ip_of_recvr.equals(userThreads[i].given_ip)) {
                                     boolCheck = true;
                                     boolean isInternal = userThreads[i].internal;
+                                    
                                     if (isInternal && internal) {
                                         Paquet newPacket = p;
                                         sendPaquets.add(newPacket);
@@ -128,28 +131,24 @@ class UserThread extends Thread {
                                         userThreads[i].outStream.writeObject(newPacket);
                                         break;
                                     }
-
                                 }
                             }
                         }
+                        
                         if (!boolCheck) {
-
                             Paquet errP = new Paquet(NAT_IP, p.getSenderIP(), NAT_Mac, 8000, "IP invalid : message (\"" + p.getMsg() + "\") did not send.", number, InternalOrNah);
-
                             outStream.writeObject(errP);
                             unsendPaquets.add(errP);
-
                         }
                     }
-
                 }
             } catch (IOException ex) {
                 System.err.println(ex);
             } catch (ClassNotFoundException ex) {
                 System.err.println(ex);
-
             }
         }
+        
         closeAll();
     }
 
@@ -163,26 +162,25 @@ class UserThread extends Thread {
             outStream.close();
             socketU.close();
             NAT_Box.removeUser();
-
         } catch (IOException ex) {
             System.err.println(ex);
-
         }
     }
 
     /**
      * This method checks if the IP address is in the natbox table
      *
-     * @params sourceIP
+     * @params sourceIP the source ip address
      */
     public boolean inNatTable(String sourceIP) {
         boolean resp;
+        
         if (NAT_Table.containsKey(sourceIP)) {
             resp = true;
         } else {
             resp = false;
         }
+        
         return resp;
     }
-
 }

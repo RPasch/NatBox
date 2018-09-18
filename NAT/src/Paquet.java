@@ -16,13 +16,13 @@ public class Paquet implements Serializable {
      * The constructor of the Paquet class. Initializes all variable of the
      * instance
      *
-     * @param senderIP
-     * @param recvIP
-     * @param senderMac
-     * @param port
-     * @param msg
-     * @param number
-     * @param InEx
+     * @param senderIP  sender ip address
+     * @param recvIP    receiver ip address
+     * @param senderMac sender's mac address
+     * @param port  port number
+     * @param msg   message
+     * @param number    number
+     * @param InEx  inex
      */
     public Paquet(String senderIP, String recvIP, String senderMac, int port, String msg, int number, int InEx) {
         this.senderIP = senderIP;
@@ -37,7 +37,7 @@ public class Paquet implements Serializable {
     /**
      * Return InEx
      *
-     * @return
+     * @return  inex
      */
     public int getInEx() {
         return InEx;
@@ -46,7 +46,7 @@ public class Paquet implements Serializable {
     /**
      * Sets InEx
      *
-     * @param InEx
+     * @param InEx  inex
      */
     public void setInEx(int InEx) {
         this.InEx = InEx;
@@ -55,7 +55,7 @@ public class Paquet implements Serializable {
     /**
      * Returns the senderIP
      *
-     * @return
+     * @return  sender ip address
      */
     public String getSenderIP() {
         return senderIP;
@@ -64,7 +64,7 @@ public class Paquet implements Serializable {
     /**
      * Sets the SenderIP
      *
-     * @param senderIP
+     * @param senderIP  sender ip address
      */
     public void setSenderIP(String senderIP) {
         this.senderIP = senderIP;
@@ -73,7 +73,7 @@ public class Paquet implements Serializable {
     /**
      * Returns the receiverIP
      *
-     * @return
+     * @return  receiver ip address
      */
     public String getRecvIP() {
         return recvIP;
@@ -82,7 +82,7 @@ public class Paquet implements Serializable {
     /**
      * Sets the receiverIP
      *
-     * @param recvIP
+     * @param recvIP    receiver ip address
      */
     public void setRecvIP(String recvIP) {
         this.recvIP = recvIP;
@@ -91,7 +91,7 @@ public class Paquet implements Serializable {
     /**
      * Gets the sender MAC
      *
-     * @return
+     * @return  sender mac address
      */
     public String getSenderMac() {
         return senderMac;
@@ -100,7 +100,7 @@ public class Paquet implements Serializable {
     /**
      * Sets the SenderMac
      *
-     * @param senderMac
+     * @param senderMac sender mac address
      */
     public void setSenderMac(String senderMac) {
         this.senderMac = senderMac;
@@ -109,7 +109,7 @@ public class Paquet implements Serializable {
     /**
      * Gets the port
      *
-     * @return
+     * @return  port number
      */
     public int getPort() {
         return port;
@@ -118,7 +118,7 @@ public class Paquet implements Serializable {
     /**
      * Sets the port
      *
-     * @param port
+     * @param port  port number
      */
     public void setPort(int port) {
         this.port = port;
@@ -127,7 +127,7 @@ public class Paquet implements Serializable {
     /**
      * Gets the msg
      *
-     * @return
+     * @return  message
      */
     public String getMsg() {
         return msg;
@@ -136,23 +136,25 @@ public class Paquet implements Serializable {
     /**
      * sets the msg
      *
-     * @param msg
+     * @param msg   message
      */
     public void setMsg(String msg) {
         this.msg = msg;
     }
 
     /**
-     *
-     * @return
+     * gets the number
+     * 
+     * @return  the number
      */
     public int getNumber() {
         return number;
     }
 
     /**
-     *
-     * @param number
+     * sets the number
+     * 
+     * @param number the number
      */
     public void setNumber(int number) {
         this.number = number;

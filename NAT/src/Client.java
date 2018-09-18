@@ -19,40 +19,31 @@ public class Client {
 
     /**
      * max number of clients
-     *
-     * @param num
      */
     public int num;
-    /**
-     * whether the user is internal or external
-     *
-     * @param internal
-     */
-    private static boolean internal;
+    
     /**
      * The generated IP of the client
-     *
-     * @param givenIP
      */
     public String givenIP;
+    
     /**
-     * The generated MAC of the client
-     *
-     * @param MACgiven
+     * The client's input stream
      */
+    public static ObjectInputStream inStream = null;
+
+    /**
+     * Is the client active or not
+     */
+    public boolean isActive = false;
+    
+    private static boolean internal;
     private String MACgiven;
-    /**
-     * The generated IP of the NATbox
-     *
-     * @param NATboxIP
-     */
     private static String NATboxIP;
     private static Socket clientSocket = null;
     private static ObjectOutputStream outStream = null;
-    public static ObjectInputStream inStream = null;
     private static final int port = 8000;
     private static BufferedReader inLine = null;
-    public boolean isActive = false;
     private boolean isIn = false;
     private Queue<Paquet> paquets = new LinkedList<>();
 
@@ -105,7 +96,6 @@ public class Client {
      * all messages. It talks directly to the NatBox.
      */
     public Client() {
-
         boolean allGood = (clientSocket != null) && (outStream != null) && (inStream != null);
 
         if (allGood) {
@@ -145,14 +135,12 @@ public class Client {
                     }
                     paquets.add(toSend);
                     outStream.writeObject(toSend);
-
                 }
 
                 System.out.println("You are disconnected");
                 outStream.close();
                 inStream.close();
                 clientSocket.close();
-
             } catch (IOException e) {
                 System.err.println("Could not create client " + e);
             }
@@ -162,7 +150,7 @@ public class Client {
     /**
      * It checks if the client has joined the NatBox
      *
-     * @return
+     * @return  true if client connected succesfully, false if not
      */
     public synchronized boolean isJoined() {
         return isIn;
@@ -171,7 +159,7 @@ public class Client {
     /**
      * It sets the generated IP address of the client
      *
-     * @param ipGiven
+     * @param ipGiven   the given ip
      */
     public void setIpGiven(String ipGiven) {
         this.givenIP = ipGiven;
@@ -180,23 +168,15 @@ public class Client {
     /**
      * It sets the generated MAC address of the client
      *
-     * @param macAddr
+     * @param macAddr   the mac address
      */
     public void setMacAddr(String macAddr) {
         this.MACgiven = macAddr;
     }
-
+    
     /**
-     * It sets the input stream of the client
-     *
-     * @param inStream
-     */
-//    public void setInStream(ObjectInputStream inStream) {
-//        this.inStream = inStream;
-//    }
-    /**
-     *
-     * @param isIn
+     * Sets that it is in
+     * @param isIn  if it is in
      */
     public void setIsIn(boolean isIn) {
         this.isIn = isIn;
@@ -205,7 +185,7 @@ public class Client {
     /**
      * Sets the IsActive variable
      *
-     * @param isActive
+     * @param isActive  if it is active
      */
 
     public synchronized void setIsActive(boolean isActive) {
@@ -215,7 +195,7 @@ public class Client {
     /**
      * The main method that create an instance of Client
      *
-     * @param args
+     * @param args  the arguments
      */
     public static void main(String[] args) {
         setEverything();

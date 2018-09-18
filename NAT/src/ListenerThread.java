@@ -13,7 +13,6 @@ class ListenerThread extends Thread {
     public ListenerThread(Client client) {
         this.client = client;
         inStream = client.inStream;
-
     }
 
     /**
@@ -31,15 +30,17 @@ class ListenerThread extends Thread {
         System.out.println("Assigned MAC: " + MACaddrsGiven);
     }
 
+    /**
+     * Checks inex
+     * 
+     * @param recv  received paquet
+     */
     public void checkInEx(Paquet recv) {
         if (recv.getInEx() == 0) {
             System.out.println("packet from Internal \n");
-
         } else if (recv.getInEx() == 1) {
             System.out.println("packet from external \n");
-
         }
-
     }
 
     /**
@@ -58,7 +59,9 @@ class ListenerThread extends Thread {
             if (msg.equals(client.num + 1)) {
                 System.out.println("This user is not valid");
             }
+            
             Paquet recvPackect;
+            
             try {
                 recvPackect = (Paquet) inStream.readObject();
             } catch (ClassNotFoundException ex) {
@@ -75,9 +78,10 @@ class ListenerThread extends Thread {
                     System.err.println(ex);
                     recvPackect = null;
                 }
-
             }
+            
             inStream.close();
+            
             synchronized (this) {
                 client.setIsActive(true);
             }

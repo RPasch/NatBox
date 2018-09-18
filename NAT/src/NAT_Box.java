@@ -12,6 +12,11 @@ import java.util.Scanner;
 
 public class NAT_Box {
 
+    /**
+     * this is a really fantastic number, possibly the greatest ever
+     */
+    public static int number;
+    
     private final static int max = 255;
     private static ServerSocket socketServ = null;
     private static Socket socketUs = null;
@@ -20,7 +25,6 @@ public class NAT_Box {
     private static String NatBoxPrivateIp = "192.168.0.0";
     private static String NatBoxPublicIp = "69:69:69:69";
     private static Hashtable<String, String> IPs = new Hashtable<String, String>();
-    public static int number;
     private static List<String> MACs = new ArrayList<String>();
     private static List<String> extIPs = new ArrayList<String>();
     private static Queue<UserThread> userThreads = new LinkedList<>();
@@ -36,6 +40,7 @@ public class NAT_Box {
         } catch (IOException e) {
             System.out.println("Server could not be created");
         }
+        
         generateAvailableIP();
         extIPs.add(NatBoxPublicIp);
         MACs.add(NatBoxMac);
@@ -48,7 +53,7 @@ public class NAT_Box {
      * This method closes all the sockets as well as removes the IPss from the
      * NatBox
      *
-     * @param ip
+     * @param ip    the ip address
      */
     public void closeSocket(String ip) {
         IPs.remove(ip);
@@ -62,6 +67,7 @@ public class NAT_Box {
     public void generateAvailableIP() {
         try {
             Scanner sc = new Scanner(new File("ip.txt"));
+            
             while (sc.hasNext()) {
                 String line = sc.nextLine();
                 Scanner scLine = new Scanner(line);
@@ -77,7 +83,7 @@ public class NAT_Box {
      * This method generates random Mac addresses and it is called in
      * generateMAC()
      *
-     * @return
+     * @return  a random MAC address
      */
     public static String randomMACAddress() {
         Random rand = new Random();
@@ -87,8 +93,8 @@ public class NAT_Box {
         macAddr[0] = (byte) (macAddr[0] & (byte) 254);  //zeroing last 2 bytes to make it unicast and locally adminstrated
 
         StringBuilder sb = new StringBuilder(18);
+        
         for (byte b : macAddr) {
-
             if (sb.length() > 0) {
                 sb.append(":");
             }
@@ -102,7 +108,7 @@ public class NAT_Box {
     /**
      * This method is called when a MAC address has to be assigned to a new user
      *
-     * @return
+     * @return  a generated MAC address
      */
     public static String generateMAC() {
         String mac = "";
@@ -110,6 +116,7 @@ public class NAT_Box {
 
         while (carryOn) {
             mac = randomMACAddress();
+
             if (!MACs.contains(mac)) {
                 MACs.add(mac);
                 carryOn = false;
@@ -121,27 +128,27 @@ public class NAT_Box {
 
     /**
      * Removes a user from the UserThreads list once it disconnects
-     *
      */
     public static void removeUser() {
         if (!userThreads.isEmpty()) {
             userThreads.remove();
         }
-
     }
 
     /**
      * It generates a IP address for an external user
      *
-     * @return
+     * @return  an ip address
      */
     public static String generateExternalIP() {
         Random r = new Random();
 
-        String ip = r.nextInt(256) + "." + r.nextInt(256) + "." + r.nextInt(256) + "." + r.nextInt(256);
+        String ip = (r.nextInt(255) + 1) + "." + r.nextInt(256) + "." + r.nextInt(256) + "." + r.nextInt(256);
+        
         while (extIPs.contains(ip)) {
             ip = generateExternalIP();
         }
+        
         return ip;
     }
 
@@ -149,10 +156,10 @@ public class NAT_Box {
      * It classifies the incoming message to either internal or external and
      * depends on who sent the msg
      *
-     * @param ip
-     * @param mac
-     * @param num
-     * @return
+     * @param ip    ip address
+     * @param mac   mac address
+     * @param num   number
+     * @return  generated message
      */
     public static String generateMessage(String ip, String mac, int num) {
         String msg = "100";
@@ -166,38 +173,37 @@ public class NAT_Box {
         } else if (num == 0) {
             msg = "0";
         }
+        
         for (int i = 0; i < extIPs.size(); i++) {
             if (extIPs.contains(ip)) {
                 msg = "0";
             }
-
         }
+        
         return msg;
     }
 
     /**
      * It does all the sending. It sends all needed information the the client
      *
-     * @param msg
-     * @param ip
-     * @param mac
-     * @param number
-     * @param output
-     * @throws IOException
+     * @param msg   message
+     * @param ip    ip address
+     * @param mac   mac address
+     * @param number    number
+     * @param output    output
      */
     public static void sendInfo(String msg, String ip, String mac, int number, ObjectOutputStream output) throws IOException {
         output.writeObject(msg);
         output.writeObject(ip);
         output.writeObject(mac);
         output.writeObject(number);
-
     }
 
     /**
      * The main method. It calls most of the other methods and is the part of
      * the program that does almost everything
      *
-     * @param args
+     * @param args  the arguments
      */
     public static void main(String[] args) {
         NAT_Box nat = new NAT_Box(8000);
