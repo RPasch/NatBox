@@ -1,77 +1,159 @@
+
 import java.io.Serializable;
+
 
 public class Paquet implements Serializable {
 
-    private String sourceIP;
-    private String destIP;
-    private String sourceMac;
+    private String senderIP;
+    private String recvIP;
+    private String senderMac;
     private int port;
-    private String payload;
-    private int number ;
+    private String msg;
+    private int number;
     private int InEx;
-    
-    public Paquet(String sourceIP, String destIP, String sourceMac, int port, String payload, int number, int InEx) {
-        this.sourceIP = sourceIP;
-        this.destIP = destIP;
-        this.sourceMac = sourceMac;
+
+    /**
+     * The constructor of the Paquet class. Initializes all variable of the
+     * instance
+     *
+     * @param senderIP
+     * @param recvIP
+     * @param senderMac
+     * @param port
+     * @param msg
+     * @param number
+     * @param InEx
+     */
+    public Paquet(String senderIP, String recvIP, String senderMac, int port, String msg, int number, int InEx) {
+        this.senderIP = senderIP;
+        this.recvIP = recvIP;
+        this.senderMac = senderMac;
         this.port = port;
-        this.payload = payload;
+        this.msg = msg;
         this.number = number;
         this.InEx = InEx;
     }
 
+    /**
+     * Return InEx
+     *
+     * @return
+     */
     public int getInEx() {
         return InEx;
     }
 
+    /**
+     * Sets InEx
+     *
+     * @param InEx
+     */
     public void setInEx(int InEx) {
         this.InEx = InEx;
     }
 
-    public String getSourceIP() {
-        return sourceIP;
+    /**
+     * Returns the senderIP
+     *
+     * @return
+     */
+    public String getSenderIP() {
+        return senderIP;
     }
 
-    public void setSourceIP(String sourceIP) {
-        this.sourceIP = sourceIP;
+    /**
+     * Sets the SenderIP
+     *
+     * @param senderIP
+     */
+    public void setSenderIP(String senderIP) {
+        this.senderIP = senderIP;
     }
 
-    public String getDestIP() {
-        return destIP;
+    /**
+     * Returns the receiverIP
+     *
+     * @return
+     */
+    public String getRecvIP() {
+        return recvIP;
     }
 
-    public void setDestIP(String destIP) {
-        this.destIP = destIP;
+    /**
+     * Sets the receiverIP
+     *
+     * @param recvIP
+     */
+    public void setRecvIP(String recvIP) {
+        this.recvIP = recvIP;
     }
 
-    public String getSourceMac() {
-        return sourceMac;
+    /**
+     * Gets the sender MAC
+     *
+     * @return
+     */
+    public String getSenderMac() {
+        return senderMac;
     }
 
-    public void setSourceMac(String sourceMac) {
-        this.sourceMac = sourceMac;
+    /**
+     * Sets the SenderMac
+     *
+     * @param senderMac
+     */
+    public void setSenderMac(String senderMac) {
+        this.senderMac = senderMac;
     }
 
+    /**
+     * Gets the port
+     *
+     * @return
+     */
     public int getPort() {
         return port;
     }
 
+    /**
+     * Sets the port
+     *
+     * @param port
+     */
     public void setPort(int port) {
         this.port = port;
     }
 
-    public String getPayload() {
-        return payload;
+    /**
+     * Gets the msg
+     *
+     * @return
+     */
+    public String getMsg() {
+        return msg;
     }
 
-    public void setPayload(String payload) {
-        this.payload = payload;
+    /**
+     * sets the msg
+     *
+     * @param msg
+     */
+    public void setMsg(String msg) {
+        this.msg = msg;
     }
 
+    /**
+     *
+     * @return
+     */
     public int getNumber() {
         return number;
     }
 
+    /**
+     *
+     * @param number
+     */
     public void setNumber(int number) {
         this.number = number;
     }

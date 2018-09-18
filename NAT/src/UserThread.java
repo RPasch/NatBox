@@ -6,18 +6,16 @@ import java.net.Socket;
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 class UserThread extends Thread {
 
-    private ObjectInputStream input = null;
-    private ObjectOutputStream output = null;
-    private int maxUsers;
-    private Socket userSocket = null;
-    private UserThread[] users = null;
-    private boolean internal;
-    private String assigned_ip;
+    private ObjectInputStream inStream = null;
+    private ObjectOutputStream outStream = null;
+    private int max;
+    private Socket socketU = null;
+    private UserThread[] userThreads = null;
+    private final boolean internal;
+    private String given_ip;
     private String NAT_IP;
     private String NAT_Mac;
     private static Hashtable<String, String> NAT_Table = new Hashtable<String, String>();
@@ -27,102 +25,119 @@ class UserThread extends Thread {
     private static Queue<Paquet> unsendPaquets = new LinkedList<>();
     private static Queue<Paquet> sendPaquets = new LinkedList<>();
 
-    public UserThread(ObjectInputStream input, ObjectOutputStream output, UserThread[] users, String assigned_ip, boolean internal, String NAT_IP, String NAT_Mac, NAT_Box nat, Socket userSocket,int number,int InternalOrNah) {
-        this.input = input;
-        this.output = output;
-        this.users = users;
-        maxUsers = users.length;
-        this.assigned_ip = assigned_ip;
+    public UserThread(ObjectInputStream input, ObjectOutputStream output, UserThread[] users, String assigned_ip, boolean internal, String NAT_IP, String NAT_Mac, NAT_Box nat, Socket userSocket, int number, int InternalOrNah) {
+        this.inStream = input;
+        this.outStream = output;
+        this.userThreads = users;
+        max = users.length;
+        this.given_ip = assigned_ip;
         this.internal = internal;
         this.NAT_IP = NAT_IP;
         this.NAT_Mac = NAT_Mac;
-        this.userSocket = userSocket;
+        this.socketU = userSocket;
         this.box = nat;
         this.number = number;
         this.InternalOrNah = InternalOrNah;
     }
 
+    /**
+     * This method puts the given Paquet in the NAT_Table
+     *
+     * @param p
+     */
+    public void putInNatTable(Paquet p) {
+        NAT_Table.put(p.getRecvIP(), p.getSenderIP());
+
+    }
+
+    /**
+     * This method takes out the given Paquet in the NAT_Table
+     *
+     * @param sourceIP
+     */
+    public void takeOutNatTable(String sourceIP) {
+        NAT_Table.remove(sourceIP);
+    }
+
+    /**
+     * This method is the method that is run when the thread is started. I
+     * immediately receives information from the client. It handles messages
+     * from internal - internal , internal to external , dropped packets and
+     * ect...
+     */
     public void run() {
         while (true) {
             try {
 
-                Paquet packet = (Paquet) input.readObject();
-                String dest = packet.getDestIP();
-                InternalOrNah = packet.getInEx();
-                if (dest.equals("exit")) {
-                    output.writeObject(null);
-                    box.closeSocket(assigned_ip);
-                    assigned_ip = "gone";
+                Paquet p = (Paquet) inStream.readObject();
+                String ip_of_recvr = p.getRecvIP();
+                InternalOrNah = p.getInEx();
+                if (ip_of_recvr.equals("exit")) {
+                    outStream.writeObject(null);
+                    box.closeSocket(given_ip);
+                    given_ip = "gone";
                     break;
                 }
-                if (dest.equals(NAT_IP) && InternalOrNah == 1 ) {
-                    //message from external user
-                    //Look up in the NAT table, if not there drop packet
+                if (ip_of_recvr.equals(NAT_IP) && InternalOrNah == 1) {
                     System.out.println("\n +++++++++++++\n FROM EXTERNAL \n +++++++++++++\n ");
-                    if (!inNatTable(packet.getSourceIP())) {
-                        //drop packet
-                        System.out.println("Dropped packet from IP(" + packet.getSourceIP() + ")");
-                        Paquet error = new Paquet(NAT_IP, packet.getSourceIP(), NAT_Mac, 8000, "Your IP address is not in the NAT table: message(\"" + packet.getPayload() + "\") not sent.",number,InternalOrNah);
-                        Paquet err = new Paquet(NAT_IP, packet.getSourceIP(), NAT_Mac, 8000, "Your IP address is not in the NAT table: message(\"" + packet.getPayload() + "\") not sent.",number,InternalOrNah);
-                        output.writeObject(err);
-                        unsendPaquets.add(err);
+                    if (!inNatTable(p.getSenderIP())) {
+                        System.out.println("Dropped packet from IP(" + p.getSenderIP() + ")");
+                        Paquet errorPacket = new Paquet(NAT_IP, p.getSenderIP(), NAT_Mac, 8000, "Your IP address is not in the NAT table: message(\"" + p.getMsg() + "\") not sent.", number, InternalOrNah);
+                        Paquet errP = new Paquet(NAT_IP, p.getSenderIP(), NAT_Mac, 8000, "Your IP address is not in the NAT table: message(\"" + p.getMsg() + "\") not sent.", number, InternalOrNah);
+                        outStream.writeObject(errP);
+                        unsendPaquets.add(errP);
                     } else {
-                        //in the table, update packet and forward to internal user
-                        String intDest = NAT_Table.get(packet.getSourceIP());
-                        packet.setDestIP(intDest);
+                        String intDestIP = NAT_Table.get(p.getSenderIP());
+                        p.setRecvIP(intDestIP);
                         synchronized (this) {
-                            for (int i = 0; i < maxUsers; i++) {
-                                if (intDest.equals(users[i].assigned_ip)) {
-                                    users[i].output.writeObject(packet);
-                                    sendPaquets.add(packet);
-                                    removeFromNat(packet.getSourceIP());
+                            for (int i = 0; i < max; i++) {
+                                if (intDestIP.equals(userThreads[i].given_ip)) {
+                                    userThreads[i].outStream.writeObject(p);
+                                    sendPaquets.add(p);
+                                    takeOutNatTable(p.getSenderIP());
                                     break;
                                 }
                             }
                         }
                     }
                 } else if (InternalOrNah == 0) {
-                    //message from internal
                     System.out.println("\n +++++++++++++\n FROM INTERNAL \n +++++++++++++\n ");
 
-                    boolean flag = false;
+                    boolean boolCheck = false;
                     synchronized (this) {
-                        for (int i = 0; i < maxUsers; i++) {
-                            if (users[i] != null) {
-                                if (dest.equals(users[i].assigned_ip)) {
-                                    flag = true;
-                                    boolean destInternal = users[i].internal;
-                                    //internal to internal
-                                    if (destInternal && internal) {
-                                        //Sender and receiver are both internal      
-                                        Paquet newPacket = packet; 
+                        for (int i = 0; i < max; i++) {
+                            if (userThreads[i] != null) {
+                                if (ip_of_recvr.equals(userThreads[i].given_ip)) {
+                                    boolCheck = true;
+                                    boolean isInternal = userThreads[i].internal;
+                                    if (isInternal && internal) {
+                                        Paquet newPacket = p;
                                         sendPaquets.add(newPacket);
-                                        users[i].output.writeObject(newPacket);
+                                        userThreads[i].outStream.writeObject(newPacket);
                                         break;
                                     }
 
-                                    //internal to external
-                                    if (internal && !destInternal) {
-                                        Paquet newPacket = packet;
-                                        add_to_NAT(newPacket);
-                                        
-                                        newPacket.setSourceIP(NAT_IP);
-                                        newPacket.setSourceMac(NAT_Mac);
-                                         
+                                    if (internal && !isInternal) {
+                                        Paquet newPacket = p;
+                                        putInNatTable(newPacket);
+
+                                        newPacket.setSenderIP(NAT_IP);
+                                        newPacket.setSenderMac(NAT_Mac);
+
                                         sendPaquets.add(newPacket);
-                                        users[i].output.writeObject(newPacket);
+                                        userThreads[i].outStream.writeObject(newPacket);
                                         break;
                                     }
 
                                 }
                             }
                         }
-                        if (!flag) {
-                            
-                            Paquet err = new Paquet(NAT_IP, packet.getSourceIP(), NAT_Mac, 8000, "IP invalid : message (\"" + packet.getPayload() + "\") did not send.",number,InternalOrNah);
-                            
-                            output.writeObject(err);
-                            unsendPaquets.add(err);
+                        if (!boolCheck) {
+
+                            Paquet errP = new Paquet(NAT_IP, p.getSenderIP(), NAT_Mac, 8000, "IP invalid : message (\"" + p.getMsg() + "\") did not send.", number, InternalOrNah);
+
+                            outStream.writeObject(errP);
+                            unsendPaquets.add(errP);
 
                         }
                     }
@@ -137,12 +152,16 @@ class UserThread extends Thread {
         }
         closeAll();
     }
-    public void closeAll(){
+
+    /**
+     * This method closes all sockets and all input/output streams
+     */
+    public void closeAll() {
         try {
             System.out.println("User left");
-            input.close();
-            output.close();
-            userSocket.close();
+            inStream.close();
+            outStream.close();
+            socketU.close();
             NAT_Box.removeUser();
 
         } catch (IOException ex) {
@@ -150,7 +169,12 @@ class UserThread extends Thread {
 
         }
     }
-    
+
+    /**
+     * This method checks if the IP address is in the natbox table
+     *
+     * @params sourceIP
+     */
     public boolean inNatTable(String sourceIP) {
         boolean resp;
         if (NAT_Table.containsKey(sourceIP)) {
@@ -161,12 +185,4 @@ class UserThread extends Thread {
         return resp;
     }
 
-    public void add_to_NAT(Paquet p) {
-        NAT_Table.put(p.getDestIP(), p.getSourceIP());
-
-    }
-
-    public void removeFromNat(String sourceIP) {
-        NAT_Table.remove(sourceIP);
-    }
 }

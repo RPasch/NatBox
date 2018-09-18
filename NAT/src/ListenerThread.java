@@ -1,82 +1,85 @@
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 class ListenerThread extends Thread {
 
     private Client client;
-    private ObjectInputStream is;
+    private ObjectInputStream inStream;
     private String msg;
     private String givenIP;
-    private String macAddress;
-    
+    private String MACaddrsGiven;
+
     public ListenerThread(Client client) {
         this.client = client;
-        is = client.is;
+        inStream = client.inStream;
 
     }
-    public void readSetInfo() throws IOException, ClassNotFoundException{
-        msg = (String) is.readObject();
-        givenIP = (String) is.readObject();
-        macAddress = (String) is.readObject();
-        client.number = (int) is.readObject();
+
+    /**
+     * This method reads all information needed and sets the required variables
+     * to continue.
+     */
+    public void readSetInfo() throws IOException, ClassNotFoundException {
+        msg = (String) inStream.readObject();
+        givenIP = (String) inStream.readObject();
+        MACaddrsGiven = (String) inStream.readObject();
+        client.num = (int) inStream.readObject();
         client.setIpGiven(givenIP);
-        client.setMacAddr(macAddress);
+        client.setMacAddr(MACaddrsGiven);
         System.out.println("Assigned IP: " + givenIP);
-        System.out.println("Assigned MAC: " + macAddress);
+        System.out.println("Assigned MAC: " + MACaddrsGiven);
     }
-    
-    public void checkInEx(Paquet recv){
-        if(recv.getInEx() == 0){
-                System.out.println("packet from Internal \n");
 
-            
-            } else if ( recv.getInEx() == 1){
-                System.out.println("packet from external \n");
-            
-            }
-    
+    public void checkInEx(Paquet recv) {
+        if (recv.getInEx() == 0) {
+            System.out.println("packet from Internal \n");
+
+        } else if (recv.getInEx() == 1) {
+            System.out.println("packet from external \n");
+
+        }
+
     }
-    
+
+    /**
+     * This method is called when the thread is started. It constantly listens
+     * for a new messages and responds accordingly.
+     */
     public void run() {
-        /*
-         *  The thread that receives messages from NAT router
-         */
 
         try {
             readSetInfo();
-            
+
             synchronized (this) {
-                client.setJoinedNetwork(true);
-            }
-            
-            if( msg.equals(client.number+1)){
-                System.out.println("This user is not valid");
-            }
-            Paquet recv;
-            try {
-                recv = (Paquet) is.readObject();
-            } catch (ClassNotFoundException ex) {
-                System.err.println(ex);
-                recv = null;
+                client.setIsIn(true);
             }
 
-            while (recv != null) {
-                checkInEx(recv);
-                System.out.println("Received packet from:  IP(" + recv.getSourceIP() + ") Mac(" + recv.getSourceMac() + ") Message = " + recv.getPayload());
+            if (msg.equals(client.num + 1)) {
+                System.out.println("This user is not valid");
+            }
+            Paquet recvPackect;
+            try {
+                recvPackect = (Paquet) inStream.readObject();
+            } catch (ClassNotFoundException ex) {
+                System.err.println(ex);
+                recvPackect = null;
+            }
+
+            while (recvPackect != null) {
+                checkInEx(recvPackect);
+                System.out.println("Received packet from:  IP(" + recvPackect.getSenderIP() + ") Mac(" + recvPackect.getSenderMac() + ") Message = " + recvPackect.getMsg());
                 try {
-                    recv = (Paquet) is.readObject();
+                    recvPackect = (Paquet) inStream.readObject();
                 } catch (ClassNotFoundException ex) {
                     System.err.println(ex);
-                    recv = null;
+                    recvPackect = null;
                 }
 
             }
-            is.close();
+            inStream.close();
             synchronized (this) {
-                client.setClosed(true);
+                client.setIsActive(true);
             }
         } catch (IOException e) {
             System.err.println("I/O error: " + e);

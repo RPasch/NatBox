@@ -1,3 +1,4 @@
+
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -15,121 +16,141 @@ import java.util.logging.Logger;
 
 
 public class Client {
-    public int number;
+
+    /**
+     * max number of clients
+     *
+     * @param num
+     */
+    public int num;
+    /**
+     * whether the user is internal or external
+     *
+     * @param internal
+     */
     private static boolean internal;
+    /**
+     * The generated IP of the client
+     *
+     * @param givenIP
+     */
     public String givenIP;
-    private String macAddress;
-    private static String natIP;
-    // The client socket
+    /**
+     * The generated MAC of the client
+     *
+     * @param MACgiven
+     */
+    private String MACgiven;
+    /**
+     * The generated IP of the NATbox
+     *
+     * @param NATboxIP
+     */
+    private static String NATboxIP;
     private static Socket clientSocket = null;
-    // The output stream
-    private static ObjectOutputStream os = null;
-    // The input stream
-    public static ObjectInputStream is = null;
-    
-    private static final int portNumber = 8000;
-
-    private static BufferedReader inputLine = null;
-    public boolean closed = false;
-    private boolean joinedNetwork = false;
+    private static ObjectOutputStream outStream = null;
+    public static ObjectInputStream inStream = null;
+    private static final int port = 8000;
+    private static BufferedReader inLine = null;
+    public boolean isActive = false;
+    private boolean isIn = false;
     private Queue<Paquet> paquets = new LinkedList<>();
-   
-    public static void setEverything(){
-        inputLine = new BufferedReader(new InputStreamReader(System.in));
-            System.out.println("NAT-Box IP?");
-            try {
-                natIP = inputLine.readLine();
-                String temp = "";
-                boolean carryOn = true;
 
-                while (carryOn) {
-                    System.out.println("Internal or External client?");
-                    temp = inputLine.readLine();
-                    switch (temp) {
-                        case "internal":
-                            internal = true;
-                            carryOn = false;
-                            break;
-                        case "external":
-                            internal = false;
-                            carryOn = false;
-                            break;
-                        default:
-                            System.out.println("Only enter either 'internal' or 'external'");
-                            break;
-                    }
+    /**
+     * This method gets all the input from the user and set all associated
+     * variables. It creates all sockets and input/output streams as well.
+     */
+    public static void setEverything() {
+        inLine = new BufferedReader(new InputStreamReader(System.in));
+        System.out.println("NAT-Box IP?");
+        try {
+            NATboxIP = inLine.readLine();
+            String temp = "";
+            boolean cont = true;
+
+            while (cont) {
+                System.out.println("Internal or External client?");
+                temp = inLine.readLine();
+                switch (temp) {
+                    case "internal":
+                        internal = true;
+                        cont = false;
+                        break;
+                    case "external":
+                        internal = false;
+                        cont = false;
+                        break;
+                    default:
+                        System.out.println("Only enter either 'internal' or 'external'");
+                        break;
                 }
-            } catch (IOException ex) {
-                System.err.println(ex);
             }
+        } catch (IOException ex) {
+            System.err.println(ex);
+        }
 
-            /*
-             * Open a socket on a given host and port. Open input and output streams.
-             */
-            try {
-                clientSocket = new Socket(natIP, portNumber);
-                os = new ObjectOutputStream(clientSocket.getOutputStream());
-                is = new ObjectInputStream(clientSocket.getInputStream());
-            } catch (UnknownHostException e) {
-                System.err.println("Host : " + natIP+ " does not exist \n error :"+ e);
-            } catch (IOException e) {
-                System.err.println("I/O error with host :  " + natIP + " error : "+ e);
-            }
+        try {
+            clientSocket = new Socket(NATboxIP, port);
+            outStream = new ObjectOutputStream(clientSocket.getOutputStream());
+            inStream = new ObjectInputStream(clientSocket.getInputStream());
+        } catch (UnknownHostException e) {
+            System.err.println("Host : " + NATboxIP + " does not exist \n error :" + e);
+        } catch (IOException e) {
+            System.err.println("I/O error with host :  " + NATboxIP + " error : " + e);
+        }
     }
+
+    /**
+     * The constructor of the Client. It starts the listener thread and receives
+     * all messages. It talks directly to the NatBox.
+     */
     public Client() {
 
-        /*
-         * If everything has been initialized then we want to write some data to the
-         * socket we have opened a connection to on the port portNumber.
-         */
-        boolean allGood = (clientSocket != null) && (os != null) && (is != null);
-        
+        boolean allGood = (clientSocket != null) && (outStream != null) && (inStream != null);
+
         if (allGood) {
             try {
 
-                /* Create a thread to read from the server. */
                 new Thread(new ListenerThread(this)).start();
 
-                int InEx ;
+                int InEx;
                 if (internal) {
                     InEx = 0;
                 } else {
                     InEx = 1;
                 }
-                
-                os.writeObject(InEx);
 
-                while (!closed) {
-                    while (!isJoined()) {}
-                    
+                outStream.writeObject(InEx);
+
+                while (!isActive) {
+                    while (!isJoined()) {
+                    }
+
                     if (givenIP.equals("empty")) {
                         System.out.println("Could not connect to server");
                     }
 
                     System.out.println("Enter destination IP address : ");
-                    String dest = inputLine.readLine();
-                    String payload;
-                    Paquet send ;
-                    if (dest.equals("exit")) {
-                        payload = "";
-                        send = new Paquet(givenIP, dest, macAddress, portNumber, payload, number, InEx);
+                    String recvIP = inLine.readLine();
+                    String msg;
+                    Paquet toSend;
+                    if (recvIP.equals("exit")) {
+                        msg = "";
+                        toSend = new Paquet(givenIP, recvIP, MACgiven, port, msg, num, InEx);
                         break;
                     } else {
                         System.out.println("Enter message:");
-                        payload = inputLine.readLine();
-                        send = new Paquet(givenIP, dest, macAddress, portNumber, payload,number,InEx);
+                        msg = inLine.readLine();
+                        toSend = new Paquet(givenIP, recvIP, MACgiven, port, msg, num, InEx);
                     }
-                    paquets.add(send);
-                    os.writeObject(send);
+                    paquets.add(toSend);
+                    outStream.writeObject(toSend);
 
                 }
-                
-                /*
-                 * Close the output stream, close the input stream, close the socket.
-                 */
+
                 System.out.println("You are disconnected");
-                os.close();
-                is.close();
+                outStream.close();
+                inStream.close();
                 clientSocket.close();
 
             } catch (IOException e) {
@@ -138,46 +159,64 @@ public class Client {
         }
     }
 
+    /**
+     * It checks if the client has joined the NatBox
+     *
+     * @return
+     */
     public synchronized boolean isJoined() {
-        return joinedNetwork;
+        return isIn;
     }
 
-//    public String getIpGiven() {
-//        return givenIP;
-//    }
-
+    /**
+     * It sets the generated IP address of the client
+     *
+     * @param ipGiven
+     */
     public void setIpGiven(String ipGiven) {
         this.givenIP = ipGiven;
     }
 
-//    public String getMacAddr() {
-//        return macAddress;
-//    }
-
+    /**
+     * It sets the generated MAC address of the client
+     *
+     * @param macAddr
+     */
     public void setMacAddr(String macAddr) {
-        this.macAddress = macAddr;
+        this.MACgiven = macAddr;
     }
 
-//    public ObjectInputStream getIs() {
-//        return is;
+    /**
+     * It sets the input stream of the client
+     *
+     * @param inStream
+     */
+//    public void setInStream(ObjectInputStream inStream) {
+//        this.inStream = inStream;
 //    }
-
-    public void setIs(ObjectInputStream is) {
-        this.is = is;
+    /**
+     *
+     * @param isIn
+     */
+    public void setIsIn(boolean isIn) {
+        this.isIn = isIn;
     }
 
-    public void setJoinedNetwork(boolean joinedNetwork) {
-        this.joinedNetwork = joinedNetwork;
+    /**
+     * Sets the IsActive variable
+     *
+     * @param isActive
+     */
+
+    public synchronized void setIsActive(boolean isActive) {
+        this.isActive = isActive;
     }
 
-//    public boolean isClosed() {
-//        return closed;
-//    }
-
-    public synchronized void setClosed(boolean closed) {
-        this.closed = closed;
-    }
-
+    /**
+     * The main method that create an instance of Client
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         setEverything();
 
